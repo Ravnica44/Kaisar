@@ -1,36 +1,66 @@
 #!/bin/bash
+# Script to install and manage Kaisar Provider CLI with PM2
 
-# Check for root privileges
-if [ "$EUID" -ne 0 ]; then
-  echo "Please run this script with sudo: sudo ./kaisar-provider-setup.sh"
-  exit 1
+# Variables
+VERSION="2508100315"
+DIR="/opt/kaisar-provider-cli-$VERSION"
+ARCHIVE="kaisar-provider-cli-$VERSION.tar.gz"
+URL="https://github.com/Kaisar-Network/kaisar-releases/raw/refs/heads/main/kaisar-provider-cli-2508100315.tar.gz"
+PROCESS_NAME="kaisar-provider"
+
+# 1️⃣ Download the release from GitHub
+echo "Downloading release $VERSION..."
+curl -L -o $ARCHIVE "$URL"
+
+# 2️⃣ Create a dedicated folder
+echo "Creating folder $DIR..."
+mkdir -p $DIR
+
+# 3️⃣ Extract the archive
+echo "Extracting the archive..."
+tar -xzf $ARCHIVE -C $DIR
+
+# 4️⃣ Go into the folder
+cd $DIR || exit
+
+# 5️⃣ Install npm dependencies
+echo "Installing npm dependencies..."
+npm install
+
+# 6️⃣ Link the CLI globally
+echo "Linking CLI globally..."
+npm link
+
+# 7️⃣ Check installed version
+echo "Installed version:"
+kaisar --version
+
+# 8️⃣ Check if PM2 is installed, install if missing
+if ! command -v pm2 &> /dev/null; then
+    echo "PM2 not found, installing..."
+    npm install -g pm2
 fi
 
-INSTALL_DIR="/opt/kaisar-provider-cli-2508100315"
-DATA_DIR="/var/lib/kaisar-provider-cli"
-ARCHIVE_URL="https://github.com/Kaisar-Network/kaisar-releases/raw/main/kaisar-provider-cli-2508100315.tar.gz"
+# 9️⃣ Delete the previous PM2 instance (if exists)
+echo "Deleting old PM2 instance (if any)..."
+pm2 delete $PROCESS_NAME 2>/dev/null || true
 
-export KAISAR_DATA_DIR="$DATA_DIR"
+# 🔟 Flush PM2 logs
+echo "Flushing PM2 logs..."
+pm2 flush
 
-# Download and extract the CLI if the directory does not exist
-if [ ! -d "$INSTALL_DIR" ]; then
-  echo "Downloading Kaisar CLI..."
-  curl -L "$ARCHIVE_URL" -o /tmp/kaisar-cli.tar.gz
-  mkdir -p "$INSTALL_DIR"
-  tar -xzf /tmp/kaisar-cli.tar.gz -C "$INSTALL_DIR" --strip-components=1
-fi
+# 1️⃣1️⃣ Start the Provider with PM2
+echo "Starting the Provider with PM2..."
+pm2 start "$DIR/dist/background/index.js" --name $PROCESS_NAME -f
 
-# Install dependencies with Yarn (optional, still useful)
-cd "$INSTALL_DIR" || exit 1
-echo "Installing dependencies with Yarn..."
-yarn install || true   # continue even if no package.json
+# 1️⃣2️⃣ Configure PM2 to restart on system reboot
+echo "Configuring PM2 for automatic startup..."
+pm2 save
+pm2 startup systemd -u root --hp /root
 
-# Create a global wrapper to run the CLI
-echo "Creating global CLI wrapper..."
-cat << 'EOF' > /usr/local/bin/kaisar
-#!/bin/bash
-node /opt/kaisar-provider-cli-2508100315/index.js "$@"
-EOF
-chmod +x /usr/local/bin/kaisar
+# 1️⃣3️⃣ Check PM2 process status
+echo "PM2 process status:"
+pm2 list
 
-echo "✅ Kaisar CLI installed successfully! You can run it with 'kaisar'"
+echo "Real-time logs (Ctrl+C to exit):"
+pm2 logs $PROCESS_NAME
