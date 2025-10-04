@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Check for root privileges
 if [ "$EUID" -ne 0 ]; then
   echo "Please run this script with sudo: sudo ./kaisar-provider-setup.sh"
   exit 1
@@ -11,6 +12,7 @@ ARCHIVE_URL="https://github.com/Kaisar-Network/kaisar-releases/raw/main/kaisar-p
 
 export KAISAR_DATA_DIR="$DATA_DIR"
 
+# Download and extract the CLI if the directory does not exist
 if [ ! -d "$INSTALL_DIR" ]; then
   echo "Downloading Kaisar CLI..."
   curl -L "$ARCHIVE_URL" -o /tmp/kaisar-cli.tar.gz
@@ -18,14 +20,16 @@ if [ ! -d "$INSTALL_DIR" ]; then
   tar -xzf /tmp/kaisar-cli.tar.gz -C "$INSTALL_DIR" --strip-components=1
 fi
 
-# Installation Node
+# Install dependencies with Yarn
 cd "$INSTALL_DIR" || exit 1
-npm install
+echo "Installing dependencies with Yarn..."
+yarn install
 
-echo "Linking CLI globally..."
-npm link
+# Link the CLI globally using Yarn
+echo "Linking CLI globally with Yarn..."
+yarn link
 if [ $? -ne 0 ]; then
-  echo "Error: Unable to link CLI globally. Please check your npm permissions."
+  echo "Error: Unable to link CLI globally. Please check your Yarn permissions."
   exit 1
 fi
 
