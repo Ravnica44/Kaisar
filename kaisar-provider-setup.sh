@@ -20,17 +20,17 @@ if [ ! -d "$INSTALL_DIR" ]; then
   tar -xzf /tmp/kaisar-cli.tar.gz -C "$INSTALL_DIR" --strip-components=1
 fi
 
-# Install dependencies with Yarn
+# Install dependencies with Yarn (optional, still useful)
 cd "$INSTALL_DIR" || exit 1
 echo "Installing dependencies with Yarn..."
-yarn install
+yarn install || true   # continue even if no package.json
 
-# Link the CLI globally using Yarn
-echo "Linking CLI globally with Yarn..."
-yarn link
-if [ $? -ne 0 ]; then
-  echo "Error: Unable to link CLI globally. Please check your Yarn permissions."
-  exit 1
-fi
+# Create a global wrapper to run the CLI
+echo "Creating global CLI wrapper..."
+cat << 'EOF' > /usr/local/bin/kaisar
+#!/bin/bash
+node /opt/kaisar-provider-cli-2508100315/index.js "$@"
+EOF
+chmod +x /usr/local/bin/kaisar
 
-echo "✅ Kaisar CLI installed successfully!"
+echo "✅ Kaisar CLI installed successfully! You can run it with 'kaisar'"
